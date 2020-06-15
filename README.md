@@ -3,7 +3,7 @@
 
 This is the initial phase of the Repo, the structure is subject to change eventually.
 
-'''
+```
 .
 ├── data                            <- contains all mutable and immutable data sources
 │   ├── processed                   <- only processed data taken from raw folder
@@ -18,5 +18,4 @@ This is the initial phase of the Repo, the structure is subject to change eventu
 │       └── model
 └── src                             <- contains the final script files
 
-'''
-
+```
