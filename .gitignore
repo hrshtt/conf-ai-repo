@@ -1,0 +1,14 @@
+
+*.jpg
+*.npz
+*.npy
+
+*.zip
+*.xml
+
+ml_env
+old_dir/libraw
+old_dir/poc/model
+.vscode
+
+__pycache__
