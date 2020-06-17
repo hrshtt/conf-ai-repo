@@ -26,6 +26,7 @@ This is the initial phase of the Repo, the structure is subject to change eventu
 
 ### Instructions to Run the Code:
 _Note: Instructions to run the flask application are seperate, open **imageviewer** folder to continue with that._
+
     1. Create a virtual enviornment to install libraries related to **AI_Cull_Duplicates**
         * Run `python3 -m venv <name of virtual env>`
         * linux: Run source `<name of virtual env>/bin/activate`
