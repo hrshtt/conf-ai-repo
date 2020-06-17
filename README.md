@@ -35,4 +35,4 @@ _Note: Instructions to run the flask application are seperate, open **imageviewe
     2. Run `pip install -r requirements.txt`
     3. Run `python src\app.py <Path to Image Directory>`
     4. Running the above will create a new session in `data\main_run`
-    5. If any other scripts are run the data will be output in `data\dry_run`
+    5. If any other scripts are running the data will be output in `data\dry_run`
