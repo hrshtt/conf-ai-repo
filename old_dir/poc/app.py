@@ -26,6 +26,8 @@ import subprocess
 ********************************
 """
 
+class 
+
 def main(resize_max_length_c, top_x_features_c, top_x_likeness_c, top_x_limit_c, face_scale_c, face_neighbors_c, face_min_c, face_resize_c, blur_threshold_c):
     """ This program takes a directory path of images and processes them for cull flags
     ********************************
@@ -77,7 +79,7 @@ def main(resize_max_length_c, top_x_features_c, top_x_likeness_c, top_x_limit_c,
     root_dir = os.getcwd() # initialize root directory location
     verbose = 0 
 
-    # Clean Up Old Run Before Starting New One
+    #clean Up Old Run Before Starting New One
     #clean_up.folder('converted_jpgs')
     #clean_up.folder('faces/individuals')
     #clean_up.folder('faces/overlays')

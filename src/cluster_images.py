@@ -4,28 +4,34 @@ and saves the image similarity scores in json file
 """
 
 import numpy as np
-import time
-import glob
-import os.path
+import time_util
+from pathlib import Path
 import json
 import pandas as pd
 import itertools
 from annoy import AnnoyIndex
 from scipy import spatial
 from collections import defaultdict
+import paths_util
 
-def cluster():
-    images_set = pd.read_json('data/reporting/images_set.json')
-    start_time = time.time()
+def cluster(cluster_tracker = None, session = None):
 
-    print("--"*25)
-    print(f"ANNOY index generation - Initilaized at {time.ctime()}")
-    print("--"*25)
+    if session is not None:
+        # Creates New Session for the Current Run
+        output_path = Path('data/main_run') / session
+    else:
+        print('--------------- This is a Dry Run ---------------')
+        cluster_tracker = time_util.time_tracker()
+        session = time_util.timestamp_simple()
+        output_path = Path('data/')
+
+    vectors_path = list((output_path / 'vectors').glob('*.npz'))[0]
+    images_set = pd.read_json(output_path / 'reporting/images_set.json')
 
     # Defining data structures as empty dict
     file_dict = defaultdict(dict)
 
-    vector_matrix = np.loadtxt('data/vectors/vector_matrix.npz', delimiter=',')
+    vector_matrix = np.loadtxt(vectors_path, delimiter=',')
 
     # Configuring annoy parameters
     dims = vector_matrix.shape[1]
@@ -39,8 +45,13 @@ def cluster():
 
     t = AnnoyIndex(dims, metric='angular')
 
+    print("----"*20)
+    print(f"ANNOY index generation - Initilaized at {time_util.timestamp()}")
+    print("----"*20)
 
-    for i in range(len(images_set)):
+    total = len(images_set)
+
+    for i in range(total):
 
         # Assigns file_name, feature_vectors and corresponding product_id
         file_name = str(images_set.iloc[i]['file_name'])
@@ -56,21 +67,17 @@ def cluster():
         # Adds image feature vectors into annoy index   
         t.add_item(i, file_vector)
 
-        print("---------------------------------")
-        print(f"Annoy index     : {i}")
-        print(f"Image file name : {file_name}")
-        print(f"--- {((time.time() - start_time)/60)} minutes passed ---------")
+        paths_util.printProgressBar(i + 1, total)
 
+    print("----"*20)
+    print(f"ANNOY index generation - Finished in {cluster_tracker.total_time()}s")
+    print("----"*20)
+
+    print("------------ Building Tree from ANNOY indices------------")
     # Builds annoy index
-
-    print("ANNOY index generation - Finished")
-
-
-    print("Building Tree from ANNOY indices - started")
-
     t.build(trees)
 
-    print("Building Tree from ANNOY indices - Finished")
+    print(f"Building Tree from ANNOY indices - Finished in {cluster_tracker.total_time()}s")
 
     print("Similarity score calculation - Started ") 
     
@@ -111,26 +118,23 @@ def cluster():
         if len(nearest_neighbors_dict['nearest_neigbors']) != 0:
             named_nearest_neighbors.append(nearest_neighbors_dict)
 
-        print("---------------------------------") 
-        print("Similarity index       : %s" %i)
-        print("Master Image file name : %s" %file_dict[i]['file_name']) 
-        print("Nearest Neighbors.     : %s" %nearest_neighbors) 
-        print("--- %.2f minutes passed ---------" % ((time.time() - start_time)/60))
-
+        paths_util.printProgressBar(i + 1, total)
     
-    print ("Step.2 - Similarity score calculation - Finished ") 
+    print (f"Step.2 - Similarity score calculation - Finished in {cluster_tracker.total_time()}s") 
 
     final_list.sort()
     final_list = list(final_list for final_list, _ in itertools.groupby(final_list))
     final_list = [list(item) for item in final_list if len(item) > 1]
 
     # Writes the 'named_nearest_neighbors' to a json file
-    with open('data/reporting/optimized_clusters.json', 'w') as out:
+    (output_path / 'reporting').mkdir(exist_ok=True)
+    with open(output_path / 'reporting/optimized_clusters.json', 'w') as out:
         json.dump(final_list, out, indent=4)
 
-    with open('data/reporting/nearest_neighbors.json', 'w') as out:
+    with open(output_path / 'reporting/nearest_neighbors.json', 'w') as out:
         json.dump(named_nearest_neighbors, out, indent=4)
 
-    print("--- Process completed in %.2f minutes ---------" % ((time.time() - start_time)/60))
+    print(f"--- Clustering for Session: {session} completed in {cluster_tracker.total_time()}s ---------")
 
-cluster()
+if __name__ == "__main__":
+    cluster()

@@ -1,0 +1,26 @@
+{% extends "layout.html" %}
+
+{% block title %}{{'Images'}} {% endblock %}
+
+{% block content %}
+<div class="container" style="width:100%;">
+
+  <nav class="navbar">
+    <div class="navbar-header">
+      
+    <span class="navbar-brand">{{ config.APPNAME }}</span>
+    </div>
+    <ul class="nav navbar-nav">
+      <li><a href="/">home</a></li>
+    </ul>
+  </nav>
+
+    <div class="row imagetiles">
+      {% for sess in sessions.keys() %}
+      <div class="col-lg-3 col-md-3 col-sm-3 col-xs-6">
+        <h3> <a href="/{{sess}}/0">Session: {{sess}}</a> </h3>
+      </div>
+      {% endfor %}
+    </div>
+
+{% endblock %}

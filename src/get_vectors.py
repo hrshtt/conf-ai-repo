@@ -1,94 +1,108 @@
 #################################################
-# Imports and function definitions
-#################################################
 # For running inference on the TF-Hub module.
 import tensorflow as tf
 import tensorflow_hub as hub
 
-# For saving 'feature vectors' into a txt file
+# For working with Vectors
 import numpy as np
 
 # Time for measuring the process time
-import time
+import time_util
 
-# Glob for reading file names in a folder
-import glob
-import os.path
+# pathlib to handle paths
+from pathlib import Path
+import paths_util
 
+# Default Dict to create Json Data, and json to save it
 import json
 from collections import defaultdict
-
 #################################################
 
 #################################################
-# This function:
-# Loads the JPEG image at the given path
-# Decodes the JPEG image to a uint8 W X H X 3 tensor
-# Resizes the image to 224 x 224 x 3 tensor
-# Returns the pre processed image as 224 x 224 x 3 tensor
+# TensorFlow Hub Model Being used: mobilenet_v2_140_224
+# Input Requirement: image of dimension height (224) x length (224) x channels (3)
+# The dtype of teh Image Tensor has to be float32 for mobilenet model
+MODEL_NAME = 'mobilenet_v2_140_224'
+HEIGHT, WEIGHT, CHANNELS = 224, 224, 3
+DTYPE = tf.float32
+MODULE_HANDLE = "https://tfhub.dev/google/imagenet/mobilenet_v2_140_224/feature_vector/4"
 #################################################
+
 def load_img(path):
-
-    # Reads the image file and returns data type of string
+    """
+    input:
+        path (str): Image Path
+    output:
+        tf.tensor: A Tensor of the Transformed Image
+    This function:
+    Loads the JPG image at the given path
+    Decodes the JPG image to a uint8 W X H X 3 tensor
+    Resizes the image based on the Constants
+    Returns the pre processed image tensor
+    """
     img = tf.io.read_file(path)
 
-    # Decodes the image to W x H x 3 shape tensor with type of uint8
-    img = tf.io.decode_jpeg(img, channels=3)
+    img = tf.io.decode_jpeg(img, channels=CHANNELS)
 
-    # Resize the image to 224 x 244 x 3 shape tensor
-    img = tf.image.resize_with_pad(img, 224, 224)
+    img = tf.image.resize_with_pad(img, HEIGHT, WEIGHT)
 
-    # Converts the data type of uint8 to float32 by adding a new axis
-    # This makes the img 1 x 224 x 224 x 3 tensor with the data type of float32
-    # This is required for the mobilenet model we are using
-    img  = tf.image.convert_image_dtype(img, tf.float32)[tf.newaxis, ...]
+    img  = tf.image.convert_image_dtype(img, DTYPE)[tf.newaxis, ...]
 
     return img
 
 #################################################
-# This function:
-# Loads the mobilenet model in TF.HUB
-# Makes an inference for all images stored in a local folder
-# Saves each of the feature vectors in a file
-#################################################
 
-def get_image_feature_vectors():
+def get_image_feature_vectors(image_dir_path, track_vecorizer_time = None, session = None):
+    """
+    input:
+        image_dir_path (string): path to the directory containing the set of images
+            to be vectorized
+        track_vecorizer_time: tracker object to track time from the begining of the run
+        session: timestamp to note the session accordingly
+    output:
+        session: The output is noted in a session folder created during the run of the program
+        files:
+            data/<session>/reporting/images_set.json: Notes the indices of the files, their name and path.
+            data/<session>/vectors/vector_matrix.npz: File containing all the image vectors verticaly stacked.
+    This function:
+    Loads the a model from TF.HUB
+    Makes an inference for all images stored in a local folder
+    Saves each of the feature vectors in a file
+    """
+    if session is not None:
+        # Creates New Session for the Current Run
+        output_path = Path('data/main_run') / session
+    else:
+        print('--------------- This is a Dry Run ---------------')
+        track_vecorizer_time = time_util.time_tracker()
+        session = time_util.timestamp_simple()
+        output_path = Path('data/dry_run') / session
 
-    start_time = time.time()
+    # Creates New Session Folders if not exist
+    output_path.mkdir(parents=True, exist_ok=True)
 
-    print("---------------------------------")
-    print(f"Model mobilenet_v2_140_224 - Loading Started at {time.ctime()}")
-    print("---------------------------------")
+    print("----"*20)
+    print(f"Model {MODEL_NAME} - Loading Started at {time_util.timestamp()}")
+    print("----"*20)
 
-    # Definition of module with using tfhub.dev handle
-    module_handle = "https://tfhub.dev/google/imagenet/mobilenet_v2_140_224/feature_vector/4" 
-    
     # Load the module
-    module = hub.load(module_handle)
+    module = hub.load(MODULE_HANDLE)
 
-    print("---------------------------------")
-    print (f"Model mobilenet_v2_140_224 - Loading Completed at {time.ctime()}")
-    print("--- %.2f minutes passed ---------" % ((time.time() - start_time)/60))
+    print("----"*20)
+    print (f"Model {MODEL_NAME} - Loading Completed at {time_util.timestamp()}")
+    print(f"--- {track_vecorizer_time.total_time()} seconds passed ---------")
+    print("----"*20)
+    print(f"Generating Feature Vectors -  Started at {time_util.timestamp()}")
+    print("----"*20)
 
-    print("---------------------------------")
-    print(f"Generating Feature Vectors -  Started at {time.ctime()}")
-
+    image_dir_path = Path(image_dir_path)
     file_list = []
-    
-    file_path = glob.glob('data/processed/transformed_images/*.jpg')
-    file_path.sort()
-
-    vector_matrix = None
-
-    # Loops through all images in a local folder
-    for i, filename in enumerate(file_path): #assuming gif
-
-        print("-----------------------------------------------------------------------------------------")
-        print("Image Index                     :%s" %i)
-        print("Image in process is             :%s" %filename)
+    total = len(list(image_dir_path.glob('*.jpg')))
+    # Loops through all images in the given folder
+    for i, filename in enumerate(image_dir_path.glob('*.jpg')): #assuming gif
 
         # Loads and pre-process the image
-        img = load_img(filename)
+        img = load_img(str(filename))
 
         # Calculate the image feature vector of the img
         features = module(img)   
@@ -97,35 +111,46 @@ def get_image_feature_vectors():
         feature_set = np.squeeze(features)  
 
         if i == 0:
+            # Initialize Vector Matrix
             vector_matrix = feature_set
         else:
+            # Add Image Vector to Vector Matrix
             vector_matrix = np.vstack([vector_matrix, feature_set])
 
-
+        # Add Image index, name and img_path to Data Structure
         file_dict = {
             'index': i,
-            'file_name': os.path.basename(filename).split('.')[0],
-            'img_path': filename
+            'file_name': filename.stem,
+            'img_path': str(filename)
         }
 
         file_list.append(file_dict)
 
-    # Saves json file for future refrencing
+        paths_util.printProgressBar(i + 1, total)
 
-    with open('data/reporting/images_set.json', 'w') as out:
+
+    print("----"*20)
+    print(f"Generating Feature Vector Matrix - Completed at {time_util.timestamp()}")
+    print(f"--- {track_vecorizer_time.total_time()} seconds passed ---------")
+
+    # Creates reporting folder in session
+    (output_path / 'reporting').mkdir()
+
+    # Saves json file for future refrencing
+    with open(output_path / 'reporting/images_set.json', 'w') as out:
         json.dump(file_list, out, indent=4)
+
+    # Creates vectors folder in session
+    (output_path / 'vectors').mkdir()
 
     # Saves the image feature vectors into a file for later use
 
-    outfile_name = "vector_matrix.npz"
-    if not os.path.exists('image_vectors'):
-        os.mkdir('image_vectors')
-    out_path = os.path.join('data/vectors', outfile_name)
+    np.savetxt(output_path / f'vectors/{MODEL_NAME}_vector_matrix.npz', vector_matrix, delimiter=',')
 
-    np.savetxt(out_path, vector_matrix, delimiter=',')
-    print("---------------------------------")
-    print("Generating Feature Vector Matrix - Completed at %s" %time.ctime())
-    print("--- %.2f minutes passed ---------" % ((time.time() - start_time)/60))
-    print("--- %s images processed ---------" %i)
+    print("----"*20)
+    print(f"Run for session: {session} - Completed at {time_util.timestamp()}")
+    print(f"--- {track_vecorizer_time.total_time()} seconds passed ---------")
+
+if __name__ == "__main__":
+    get_image_feature_vectors('data/raw/orignal_images')
     
-get_image_feature_vectors()

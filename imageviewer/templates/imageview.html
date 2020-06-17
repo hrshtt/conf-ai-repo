@@ -1,0 +1,37 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ 'Images'}} {% endblock %}
+
+{% block content %}
+<div class="container" style="width:100%;">
+
+  <nav class="navbar">
+    <div class="navbar-header">
+      
+    <span class="navbar-brand">{{ config.APPNAME }}</span>
+    </div>
+    <form class="navbar-form navbar-left" role="search" name="goto" action="/goto" method="POST">
+      <div class="form-group">
+        <input type="text" name="index" class="form-control" placeholder="Go to index">
+        <input type="hidden" name="session" value={{sess}} class="form-control"  >
+      </div>
+      <button type="Go" class="btn btn-default">Go</button>
+    </form>
+    <ul class="nav navbar-nav">
+      <li><a href="/">home</a></li>
+      <li><a href="/{{sess}}/{{pager.prev}}">&larr;</a> </li>
+      <li><a href="/{{sess}}/{{pager.next}}">&rarr;</a> </li>
+    </ul>
+  </nav>
+
+    <div class="row imagetiles">
+      {% for img_name in data %}
+      <div class="col-lg-3 col-md-3 col-sm-3 col-xs-6">
+        <h3>Image: {{img_name}}</h3>
+        <img src="{{ url_for('static', filename='raw/orignal_images/'+img_name+'.jpg') }}">
+       
+      </div>
+      {% endfor %}
+    </div>
+
+{% endblock %}

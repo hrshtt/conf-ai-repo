@@ -1,0 +1,15 @@
+Main Project:
+    ✔ Make Code More Pythonic: @done(20-06-17 20:52)
+        ✔ 25% @done(20-06-17 16:34)
+        ✔ 50% @done(20-06-17 18:37)
+        ✔ 75% @done(20-06-17 18:37)
+        ✔ 100% @done(20-06-17 20:52)
+    ✔ Integrate: @done(20-06-17 20:52)
+        ✔ image preprocessing script @done(20-06-17 17:47)
+        ✔ image vectorizer script @done(20-06-17 17:47)
+        ✔ vector clustering script @done(20-06-17 18:36)
+        ✔ python based application view @done(20-06-17 20:52)
+    ☐ Apply OOP
+    ☐ Use Libraries for Uniform Data
+    ☐ Robust Output
+    ✔ Change Model to TF2 @done(20-06-17 12:34)
