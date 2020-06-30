@@ -15,7 +15,7 @@ def read_table(url):
 APPNAME = "ImageViewer"
 STATIC_FOLDER = '../data'
 # TABLE_FILE = "../AI-Cull-Duplicates/data/reporting/optimized_clusters.json"
-SESSIONS = {path.stem: str(list(path.glob('**/optimized_clusters.json'))[0]) for path in Path('data/main_run').glob('*')}
+SESSIONS = {path.stem: str(list(path.glob('**/optimized_clusters.json'))[0]) for path in Path('data/main_run').glob('*') if len(list(path.glob('**/optimized_clusters.json')))>=1}
 
 app = Flask(__name__, static_folder=STATIC_FOLDER)
 app.config.update(
