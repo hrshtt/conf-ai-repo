@@ -52,7 +52,7 @@ def load_img(path):
 
 #################################################
 
-def get_image_feature_vectors(image_dir_path, track_vecorizer_time = None, session = None):
+def get_image_feature_vectors(jpg_list, out_path, track_vectorizer_time):
     """
     input:
         image_dir_path (string): path to the directory containing the set of images
@@ -69,37 +69,22 @@ def get_image_feature_vectors(image_dir_path, track_vecorizer_time = None, sessi
     Makes an inference for all images stored in a local folder
     Saves each of the feature vectors in a file
     """
-    if session is not None:
-        # Creates New Session for the Current Run
-        output_path = Path('data/main_run') / session
-    else:
-        print('--------------- This is a Dry Run ---------------')
-        track_vecorizer_time = time_util.time_tracker()
-        session = time_util.timestamp_simple()
-        output_path = Path('data/dry_run') / session
-
     # Creates New Session Folders if not exist
-    output_path.mkdir(parents=True, exist_ok=True)
 
-    print("----"*20)
-    print(f"Model {MODEL_NAME} - Loading Started at {time_util.timestamp()}")
-    print("----"*20)
+    print(f"[INFO] Model {MODEL_NAME} - Loading Started @ {time_util.timestamp()}")
 
     # Load the module
     module = hub.load(MODULE_HANDLE)
 
-    print("----"*20)
-    print (f"Model {MODEL_NAME} - Loading Completed at {time_util.timestamp()}")
-    print(f"--- {track_vecorizer_time.total_time()} seconds passed ---------")
-    print("----"*20)
-    print(f"Generating Feature Vectors -  Started at {time_util.timestamp()}")
-    print("----"*20)
+    print(f"[INFO] Model {MODEL_NAME} - Loading Completed @ {time_util.timestamp()}")
 
-    image_dir_path = Path(image_dir_path)
-    file_list = []
-    total = len(list(image_dir_path.glob('*.jpg')))
+    print(f"--- {track_vectorizer_time.total_time()} seconds passed ---------")
+    
+    print(f"[INFO] Generating Feature Vector Matrix - Started @ {time_util.timestamp()}\n")
+
+    total = len(jpg_list)
     # Loops through all images in the given folder
-    for i, filename in enumerate(image_dir_path.glob('*.jpg')): #assuming gif
+    for i, filename in enumerate(jpg_list): #assuming gif
 
         # Loads and pre-process the image
         img = load_img(str(filename))
@@ -118,39 +103,34 @@ def get_image_feature_vectors(image_dir_path, track_vecorizer_time = None, sessi
             vector_matrix = np.vstack([vector_matrix, feature_set])
 
         # Add Image index, name and img_path to Data Structure
-        file_dict = {
-            'index': i,
-            'file_name': filename.stem,
-            'img_path': str(filename)
-        }
+        # file_dict = {
+        #     'index': i,
+        #     'file_name': filename.stem,
+        #     'img_path': str(filename)
+        # }
 
-        file_list.append(file_dict)
+        # file_list.append(file_dict)
 
         paths_util.printProgressBar(i + 1, total)
 
+    print(f"[INFO] Generating Feature Vectors - Completed @ {time_util.timestamp()}")
 
-    print("----"*20)
-    print(f"Generating Feature Vector Matrix - Completed at {time_util.timestamp()}")
-    print(f"--- {track_vecorizer_time.total_time()} seconds passed ---------")
+    print(f"--- {track_vectorizer_time.total_time()} seconds passed ---------")
 
-    # Creates reporting folder in session
-    (output_path / 'reporting').mkdir()
+    out_path = Path(out_path)
 
-    # Saves json file for future refrencing
-    with open(output_path / 'reporting/images_set.json', 'w') as out:
-        json.dump(file_list, out, indent=4)
-
-    # Creates vectors folder in session
-    (output_path / 'vectors').mkdir()
+    (out_path / 'vectors').mkdir(parents=True, exist_ok=True)
 
     # Saves the image feature vectors into a file for later use
 
-    np.savetxt(output_path / f'vectors/{MODEL_NAME}_vector_matrix.npz', vector_matrix, delimiter=',')
+    np.savetxt(out_path / f'vectors/{MODEL_NAME}_vector_matrix.npz', vector_matrix, delimiter=',')
 
-    print("----"*20)
-    print(f"Run for session: {session} - Completed at {time_util.timestamp()}")
-    print(f"--- {track_vecorizer_time.total_time()} seconds passed ---------")
+    return str(out_path / f'vectors/{MODEL_NAME}_vector_matrix.npz')
 
 if __name__ == "__main__":
-    get_image_feature_vectors('data/raw/orignal_images')
-    
+
+    print('--------------- This is a Dry Run ---------------')
+    jpg_list = list(Path("data/raw/orignal_images").glob("*.jpg"))
+    vector_matrix_path = get_image_feature_vectors(jpg_list, "data/vectors", time_util.time_tracker())
+
+    print(f"Vector Matrix Creates as: {vector_matrix_path}")

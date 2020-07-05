@@ -2,7 +2,6 @@
 This script reads image feature vectors from a folder
 and saves the image similarity scores in json file
 """
-
 import numpy as np
 import time_util
 from pathlib import Path
@@ -14,127 +13,104 @@ from scipy import spatial
 from collections import defaultdict
 import paths_util
 
-def cluster(cluster_tracker = None, session = None):
+def dfs(adj_list, visited, vertex, result, key):
+    visited.add(vertex)
+    result[key].append(vertex)
+    for neighbor in adj_list[vertex]:
+        if neighbor not in visited:
+            dfs(adj_list, visited, neighbor, result, key)
 
-    if session is not None:
-        # Creates New Session for the Current Run
-        output_path = Path('data/main_run') / session
-    else:
-        print('--------------- This is a Dry Run ---------------')
-        cluster_tracker = time_util.time_tracker()
-        session = time_util.timestamp_simple()
-        output_path = Path('data/')
+def cluster(vector_matrix_path, out_path, cluster_tracker = None):
 
-    vectors_path = list((output_path / 'vectors').glob('*.npz'))[0]
-    images_set = pd.read_json(output_path / 'reporting/images_set.json')
-
-    # Defining data structures as empty dict
-    file_dict = defaultdict(dict)
-
-    vector_matrix = np.loadtxt(vectors_path, delimiter=',')
+    vector_matrix = np.loadtxt(vector_matrix_path, delimiter=',')
+    total, dims = vector_matrix.shape
 
     # Configuring annoy parameters
-    dims = vector_matrix.shape[1]
     n_nearest_neighbors = 10
     trees = 10000
     threshold = 0.95
 
-    final_list = []
-
     # Reads all file names which stores feature vectors
-
     t = AnnoyIndex(dims, metric='angular')
 
-    print("----"*20)
-    print(f"ANNOY index generation - Initilaized at {time_util.timestamp()}")
-    print("----"*20)
-
-    total = len(images_set)
+    print(f"[INFO] ANNOY index generation - Initilaized at {time_util.timestamp()}\n")
 
     for i in range(total):
-
-        # Assigns file_name, feature_vectors and corresponding product_id
-        file_name = str(images_set.iloc[i]['file_name'])
-
         file_vector = vector_matrix[i]
-
-        file_dict[i]['vector'] = file_vector
-        file_dict[i]['file_name'] = file_name
-        file_dict[i]['img_path'] = str(images_set.iloc[i]['img_path'])
-
-        final_list.append(set([file_dict[i]['file_name']]))
-
-        # Adds image feature vectors into annoy index   
         t.add_item(i, file_vector)
-
         paths_util.printProgressBar(i + 1, total)
 
-    print("----"*20)
-    print(f"ANNOY index generation - Finished in {cluster_tracker.total_time()}s")
-    print("----"*20)
+    print(f"[INFO] ANNOY index generation - Finished at {time_util.timestamp()}")
 
-    print("------------ Building Tree from ANNOY indices------------")
+    print(f"[INFO] Building Tree from ANNOY indices - Initilaized at {time_util.timestamp()}")
+
     # Builds annoy index
     t.build(trees)
 
-    print(f"Building Tree from ANNOY indices - Finished in {cluster_tracker.total_time()}s")
+    print(f"[INFO] Building Tree from ANNOY indices - Finished at {time_util.timestamp()}")
 
-    print("Similarity score calculation - Started ") 
+    print(f"[INFO] Building Tree from ANNOY indices - Finished in {cluster_tracker.total_time()}s")
+
+    print(f"[INFO] Similarity score calculation - Started {time_util.timestamp()}\n") 
     
-    named_nearest_neighbors = []
+    similarity_util = {}
 
-    # Loops through all indexed items
-    for i in file_dict:
+    cluster_edges = []
+
+    for i in range(total):
 
         # Calculates the nearest neighbors of the master item
         nearest_neighbors = t.get_nns_by_item(i, n_nearest_neighbors)
-
-        nearest_neighbors_dict = {
-            'file_name': file_dict[i]['file_name'],
-            'img_path': str(images_set.iloc[i]['img_path']),
-            'nearest_neigbors': []
-        }
 
         # Loops through the nearest neighbors of the master item
         for j in nearest_neighbors:
 
             # Calculates the similarity score of the similar item
-            similarity = 1 - spatial.distance.cosine(file_dict[i]['vector'], file_dict[j]['vector'])
+            similarity = 1 - spatial.distance.cosine(vector_matrix[i], vector_matrix[j])
             rounded_similarity = int((similarity * 10000)) / 10000.0
 
             # Appends master product id with the similarity score 
             # and the product id of the similar items
-            if similarity >= threshold and similarity!= 1:
-                nearest_neighbors_dict['nearest_neigbors'].append({
-                    'file_name': file_dict[j]['file_name']
-                    , 'similarity': float(rounded_similarity)
-                    , 'img_path': str(images_set.iloc[j]['img_path'])
-                    })
+            if similarity >= threshold and similarity != 1:
+                cluster_edges.append((i, j))
 
-                for set_ in final_list:
-                    if file_dict[i]['file_name'] in set_:
-                        set_.add(file_dict[j]['file_name'])
-
-        if len(nearest_neighbors_dict['nearest_neigbors']) != 0:
-            named_nearest_neighbors.append(nearest_neighbors_dict)
+                if i >= j:
+                    similarity_util[(j, i)] = rounded_similarity
+                else:
+                    similarity_util[(i, j)] = rounded_similarity
 
         paths_util.printProgressBar(i + 1, total)
-    
-    print (f"Step.2 - Similarity score calculation - Finished in {cluster_tracker.total_time()}s") 
 
-    final_list.sort()
-    final_list = list(final_list for final_list, _ in itertools.groupby(final_list))
-    final_list = [list(item) for item in final_list if len(item) > 1]
+    adj_list = defaultdict(list)
+    for x, y in cluster_edges:
+        adj_list[x].append(y)
+        adj_list[y].append(x)
 
-    # Writes the 'named_nearest_neighbors' to a json file
-    (output_path / 'reporting').mkdir(exist_ok=True)
-    with open(output_path / 'reporting/optimized_clusters.json', 'w') as out:
-        json.dump(final_list, out, indent=4)
+    clusters_list = defaultdict(list)
+    visited = set()
+    for vertex in adj_list:
+        if vertex not in visited:
+            dfs(adj_list, visited, vertex, clusters_list, vertex)
 
-    with open(output_path / 'reporting/nearest_neighbors.json', 'w') as out:
-        json.dump(named_nearest_neighbors, out, indent=4)
+    clusters_list = [clusters_list[key] for key in clusters_list]
 
-    print(f"--- Clustering for Session: {session} completed in {cluster_tracker.total_time()}s ---------")
+    # print([result[key] for key in result])
+    out_path = Path(out_path)
+    out_path.mkdir(parents=True, exist_ok=True)
+
+    with open(out_path / 'optimized_cluster_index.json', 'w') as out:
+        json.dump(clusters_list, out, indent=4)
+
+    cluster_list_w_indieces = [-1]*total
+    cluster_index_util = 0
+    for cluster_ in clusters_list:
+        for index in cluster_:
+            cluster_list_w_indieces[index] = cluster_index_util
+        cluster_index_util += 1
+    return cluster_list_w_indieces, clusters_list, similarity_util
 
 if __name__ == "__main__":
-    cluster()
+    print('--------------- This is a Dry Run ---------------')
+    cluster_tracker = time_util.time_tracker()
+    result, cluster_list, similarity_util = cluster("data/vectors/vector_matrix.npz", 'data/reporting')
+    print(result, cluster_list, similarity_util)

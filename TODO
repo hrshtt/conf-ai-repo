@@ -1,15 +1,23 @@
 Main Project:
-    ✔ Make Code More Pythonic: @done(20-06-17 20:52)
-        ✔ 25% @done(20-06-17 16:34)
-        ✔ 50% @done(20-06-17 18:37)
-        ✔ 75% @done(20-06-17 18:37)
-        ✔ 100% @done(20-06-17 20:52)
-    ✔ Integrate: @done(20-06-17 20:52)
-        ✔ image preprocessing script @done(20-06-17 17:47)
-        ✔ image vectorizer script @done(20-06-17 17:47)
-        ✔ vector clustering script @done(20-06-17 18:36)
-        ✔ python based application view @done(20-06-17 20:52)
-    ☐ Apply OOP
-    ☐ Use Libraries for Uniform Data
-    ☐ Robust Output
-    ✔ Change Model to TF2 @done(20-06-17 12:34)
+    Phase One:
+        ✔ Make Code More Pythonic: @done(20-06-17 20:52)
+            ✔ 25% @done(20-06-17 16:34)
+            ✔ 50% @done(20-06-17 18:37)
+            ✔ 75% @done(20-06-17 18:37)
+            ✔ 100% @done(20-06-17 20:52)
+        ✔ Integrate: @done(20-06-17 20:52)
+            ✔ image preprocessing script @done(20-06-17 17:47)
+            ✔ image vectorizer script @done(20-06-17 17:47)
+            ✔ vector clustering script @done(20-06-17 18:36)
+            ✔ python based application view @done(20-06-17 20:52)
+        ✔ Apply OOP @done(20-07-02 17:19)
+        ✔ Use Libraries for Uniform Data @done(20-07-02 17:19)
+        ✔ Robust Output @done(20-07-02 17:19)
+        ✔ Change Model to TF2 @done(20-06-17 12:34)
+    Phase Two:
+        Integrate:
+            ✔ dng_to_jpg.py @done(20-07-04 14:49)
+            ✔ resize.py @done(20-07-04 14:49)
+            ✔ get_vectors.py @done(20-07-04 14:50)
+            ✔ cluster_images.py @done(20-07-04 14:50)
+        ☐ Add and integrate performance csv generation

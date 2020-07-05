@@ -14,3 +14,11 @@ _Note: It would be better to keep the virtual enviornments of both Ai-Cull-Dupli
     5. Click on any session and view images as sorted by their similarity.
     6. Use the above arrow keys to navigate to previous or next cluster.
     7. Use the Search bar to find specific clusters using their index.
+<<<<<<< Updated upstream
+=======
+<<<<<<< HEAD
+
+![alt text](http://url/to/img.png)
+=======
+>>>>>>> e24f9dc5974aab9dea5a40d3dcf015544d5d4a2d
+>>>>>>> Stashed changes

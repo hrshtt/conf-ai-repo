@@ -12,3 +12,7 @@ old_dir/poc/model
 .vscode
 
 __pycache__
+
+*.pyc
+*~
+web_env
