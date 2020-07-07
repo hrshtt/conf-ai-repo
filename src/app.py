@@ -5,10 +5,10 @@ import get_vectors
 import cluster_images
 import dng_to_jpg
 import resize
+import paths_util
 
 import pandas as pd
 from pathlib import Path
-import paths_util
 import sys
 from itertools import repeat
 import multiprocessing as mp
@@ -26,12 +26,25 @@ CLUSTER_INDEX = 'cluster_index'
 CONVERT_JPG_PATH = 'convert_jpg_path'
 SCALED_JPG_PATH = 'scaled_jpg_path'
 NORMALIZED_JPG_PATH = 'normalized_jpg_path'
+KEEP_IMAGE = 'keep_image'
 
 RESIZE_MAX_LENGTH = 1800
+SIMILARITY_THRESHOLD = 0.95
 
 #################################################
 
+# Initializing a checkpoint_tracker to get performance stats
 track_checkpoints = time_util.checkpoint_tracker()
+
+# The Decorator @time_util.checkpoint_tracker().create_checkpoint("header_here")
+# adds a checkpoint as seen in the code below.
+# Each checkpoint stage should be defined by a unique header.
+# This header holds the total time usage of the function the
+# Decorator w the unique header is placed on.
+# The performance stats can be accessed by:
+# checkpoint_tracker().get_performance() which returns a dict.
+
+# Syntactic Sugar to make a prettier decorator
 create_checkpoint = track_checkpoints.create_checkpoint
 
 
@@ -162,7 +175,7 @@ class create_session:
             print(
                 f"[ERROR] Wrong Choice Selected for preprocess(mode = '${mode}').\n${mode} is not a choice.")
             exit(0)
-            
+
         # # Running all functions inside the pipeline
         # for step in pipeline:
         #     if step["flag"]:
@@ -172,7 +185,6 @@ class create_session:
         self.images_dataframe[JPG_PATH] = jpg_path_list
 
         self.save_csv(self.images_dataframe, "images_dataset.csv")
-
 
     @create_checkpoint("dng_to_jpg_convert")
     def run_dng_to_jpg(self, file_list, out_path):
@@ -197,7 +209,7 @@ class create_session:
             return jpg_path_list
         else:
             print(
-                f"[INFO] No .dng files found in directory for Session: {self.session}")
+                f"[INFO] NO .dng files found in directory for Session: {self.session}")
             print("[INFO] Skipping dng_to_jpg_convert")
             return file_list
 
@@ -212,12 +224,13 @@ class create_session:
         with mp.Pool(mp.cpu_count()) as p:
             new_jpg_list = p.starmap(normalize_histogram.normalize_image, zip(
                 jpg_path_list, repeat(str(out_path))))
-            
+
         # for i, jpg_path in enumerate(jpg_path_list):
         #     new_jpg_path = normalize_histogram.normalize_image(
         #         jpg_path, str(out_path))
         #     new_jpg_list.append(new_jpg_path)
         #     paths_util.printProgressBar(i+1, self.total)
+
         return new_jpg_list
 
     @create_checkpoint("resize_images")
@@ -239,30 +252,34 @@ class create_session:
         #         out_path), self.resize_max_length)  # jpg path
         #     new_jpg_path_list.append(new_jpg_path)
         #     paths_util.printProgressBar(i+1, self.total)
+
         return new_jpg_path_list
 
     @create_checkpoint("main_run")
-    def start_main_run(self):
+    def start_main_run(self, similarity_threshold=SIMILARITY_THRESHOLD, cluster_output='all'):
         """
         Runs Main Application Functions
         """
 
         if not self.preprocess_flag:
-            print("[WARNING] Preprocessing has not been done, might lead to Unexpected results.")
+            print(
+                "[WARNING] Preprocessing has not been done, might lead to Unexpected results.")
             if any([file_.endswith(".dng") for file_ in self.images_dataframe[JPG_PATH].to_list()]):
                 print(f"[ERROR] .dng file found inside {self.images_dir}")
-                print("[INFO] Run preprocess with dng_convert_flag = True and Try Again.")
+                print(
+                    "[INFO] Run preprocess with dng_convert_flag = True and Try Again.")
                 exit(0)
 
         # Gets Vector Matrix from get_vectors
-        vector_matrix_path = self.run_get_vectors(self.tracker)
+        vector_matrix_path = self.run_get_vectors(
+            self.tracker, similarity_threshold)
 
-        # Passes Vectors to cluster_images, and Adds Cluster 
-        # Indices to images_dataframe 
-        cluster_index_list = self.run_cluster_images(
-            vector_matrix_path, self.tracker)
-
-        self.images_dataframe[CLUSTER_INDEX] = cluster_index_list
+        # Passes Vectors to cluster_images, and Adds Cluster
+        # Indices to images_dataframe
+        self.run_cluster_images(
+            vector_matrix_path,
+            similarity_threshold,
+            cluster_output)
 
         # Save CSV
         self.save_csv(self.images_dataframe, "images_dataset.csv")
@@ -270,38 +287,69 @@ class create_session:
         self.print_end()
 
     @create_checkpoint("get_vectors")
-    def run_get_vectors(self, tracker):
+    def run_get_vectors(self, tracker, similarity_threshold):
         jpg_path_list = self.images_dataframe[JPG_PATH].to_list()
         out_path = str(self.session_out_path)
         return get_vectors.get_image_feature_vectors(jpg_path_list, out_path, tracker)
 
     @create_checkpoint("cluster_vectors")
-    def run_cluster_images(self, vector_matrix_path, tracker):
+    def run_cluster_images(self, vector_matrix_path, similarity_threshold, cluster_output):
         out_path = self.session_out_path / "reporting"
 
         # Run cluster images and get cluster index list and optimized cluster indices
         cluster_index_list, optimized_clusters_indices, similarity_list = cluster_images.cluster(
-            vector_matrix_path, out_path, tracker)
-        
+            vector_matrix_path,
+            str(out_path),
+            similarity_threshold,
+            self.tracker
+        )
+
         # Save optimized clusters with Image Key and Image JPG Path
         # More data can be appended to each cluster unit as required
         write_list = []
         for cluster_indices in optimized_clusters_indices:
             temp_list = []
             for index in cluster_indices:
-                temp_dict = {}
-                temp_dict[KEY] = self.images_dataframe.loc[index][KEY]
-                temp_dict[JPG_PATH] = self.images_dataframe.loc[index][JPG_PATH]
-                # Append more data here as required.
-                temp_list.append(temp_dict)
+
+                temp_dict = {
+                    KEY: self.images_dataframe.loc[index][KEY],
+                    JPG_PATH: self.images_dataframe.loc[index][JPG_PATH]
+                    # Append more data here as required.
+                }
+
+                if cluster_output == 'one':
+                    temp_list = temp_dict
+                    break
+
+                elif cluster_output == 'all':
+                    temp_list.append(temp_dict)
+
+                else:
+                    print(f"[ERROR] Wrong Choice, No such input for cluster_output: {cluster_output}")
+                    print(f"[INFO] Use cluster_output with: \"all\" or \"one\"")
+                    print(f"[WARNING] Changing cluster_output to default \"all\" for now.")
+                    cluster_output = 'all'
+                    temp_list.append(temp_dict)
 
             write_list.append(temp_list)
 
         out_path.mkdir(exist_ok=True, parents=True)
         # Save Usable Optimized Clusters
-        with open(out_path / "optimized_clusters.json", "w") as f:
+        with open(out_path / f"optimized_clusters_{cluster_output}.json", "w") as f:
             json.dump(write_list, f, indent=4)
-        return cluster_index_list
+
+        self.images_dataframe[CLUSTER_INDEX] = cluster_index_list
+
+        # Initializing T/F list for images as False
+        keep_image_list = [False]*self.total 
+
+        # For only the FIRST Index of each Cluster Make Value True
+        for cluster_indices in optimized_clusters_indices:
+            for index in cluster_indices:
+                keep_image_list[index] = True
+                break
+        
+        self.images_dataframe[KEEP_IMAGE] = keep_image_list
 
     def save_csv(self, dataframe, csv_file_name):
         """
@@ -351,9 +399,9 @@ if __name__ == "__main__":
 
     new_session = create_session(arg_path)
 
-    new_session.preprocess()
+    # new_session.preprocess()
 
-    new_session.start_main_run()
+    new_session.start_main_run(cluster_output = "one")
 
     performance = track_checkpoints.get_performance()
 

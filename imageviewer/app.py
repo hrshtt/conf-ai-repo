@@ -20,9 +20,9 @@ APPNAME = "ImageViewer"
 STATIC_FOLDER = '../data'
 # TABLE_FILE = "../AI-Cull-Duplicates/data/reporting/optimized_clusters.json"
 # Getting all sessions where optimized_clusters.json exists.
-temp_sessions = [session for session in list(Path("data/main_run").glob("*")) if len(list(session.glob("reporting/optimized_clusters.json"))) ]
+temp_sessions = [session for session in list(Path("data/main_run").glob("*")) if len(list(session.glob("reporting/optimized_clusters_all.json"))) ]
 
-SESSIONS = {session.stem: str(list(session.glob("reporting/optimized_clusters.json"))[0]) for session in temp_sessions}
+SESSIONS = {session.stem: str(list(session.glob("reporting/optimized_clusters_all.json"))[0]) for session in temp_sessions}
 
 app = Flask(__name__, static_folder=STATIC_FOLDER)
 app.config.update(

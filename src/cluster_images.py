@@ -20,7 +20,11 @@ def dfs(adj_list, visited, vertex, result, key):
         if neighbor not in visited:
             dfs(adj_list, visited, neighbor, result, key)
 
-def cluster(vector_matrix_path, out_path, cluster_tracker = None):
+def cluster(vector_matrix_path, 
+            out_path,
+            similarity_threshold,
+            cluster_tracker
+            ):
 
     vector_matrix = np.loadtxt(vector_matrix_path, delimiter=',')
     total, dims = vector_matrix.shape
@@ -28,7 +32,7 @@ def cluster(vector_matrix_path, out_path, cluster_tracker = None):
     # Configuring annoy parameters
     n_nearest_neighbors = 10
     trees = 10000
-    threshold = 0.95
+    threshold = similarity_threshold
 
     # Reads all file names which stores feature vectors
     t = AnnoyIndex(dims, metric='angular')
