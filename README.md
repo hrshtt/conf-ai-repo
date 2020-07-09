@@ -33,6 +33,11 @@ _Note: Instructions to run the flask application are seperate, open **imageviewe
         * windows: Run `<name of virtual env>\env\Scripts\activate.bat`
     2. Run `pip install -r requirements.txt`
     3. Run `python src\app.py <Path to Image Directory>`
+       * The main application runs via app.py, which is implemented with the idea of a session's run.
+       * The session Class is the main entry to the application.
+       * The session class controls two major logical stages of the appication:
+         * preprocessing via the session.preprocess() method.
+         * main_run via the session.start_main_run() method.
     4. Running the above will create a new session in `data\main_run`
     5. If any other scripts are running the data will be output in `data\dry_run`
 
@@ -52,3 +57,46 @@ _Note: Instructions to run the flask application are seperate, open **imageviewe
     * imageviewer only supports optimized_clusters_all.json for now.
     * Each module [like: resize.py, normalize_histogram.py, dng_to_jpg.py etc] is given an interface with the create_session class
     * This'll make it easy to keep logic seperate for all modules and then customizing interface for main application run inside src/app.py.
+
+
+## Logical Structure of session class
+
+#### Methods:
+
+    * queue_images
+        Gets all files from directory and populates a pandas df using the acquired data. 
+    * preprocess
+        Contains the preprocessing pipeline as required by the application. Runs preprocessing pipeline amd applies preprocessing steps sequentially.
+      * run_dng_to_jpg
+        Wrapper method to run scripts from dng_to_jpg. Ran by preprocess method.
+      * run_normalize_histogram
+        Wrapper method to run scripts from normalize_histogram. Ran by preprocess method.
+      * run_resize
+        Wrapper method to run scripts from resize. Ran by preprocess method.
+    * start_main_run
+        Maintains the main functional code of the application. Runs the code sequentially to get expected outcome.
+      * run_get_vectors
+        Wrapper method to run scripts from get_vectors. Ran by start_main_run method.
+      * run_cluster_images
+        Wrapper method to run scripts from cluster_images. Ran by start_main_run method.
+    * save_csv
+        Utility method which saves csv files from a pandas dataframe, to the current session/reporting folder.
+
+#### Variables:
+    * session
+        A timestamp string, with the same use as run_at variable of POC. 
+    * images_dir
+        Directory given as the main input to the script.
+    * session_out_path
+        Path to the directory of current session outputs.
+    * images_dataframe
+        Pandas DataFrame which contains all house keeping values and refrences.
+    * total
+        Total number of files in the directory.
+    * preprocess_flag
+        Boolean Variable turns to true if preprocessing was done. 
+    * resize_max_length
+        A Value used by scripts from resize.py. Currently controlled by constant RESIZE_MAX_LENGTH.
+    * similarity_threshold
+        A Value used by scripts from cluster_images.py. Currently controlled by constant SIMILARITY_THRESHOLD.
+

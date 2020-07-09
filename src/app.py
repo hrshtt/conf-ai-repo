@@ -59,9 +59,13 @@ class create_session:
         self.session_out_path = Path("data") / "main_run" / self.session
         self.images_dataframe = self.queue_images(images_dir)
         self.total = len(self.images_dataframe)
-        self.resize_max_length = RESIZE_MAX_LENGTH
+
         self.images_dataframe[JPG_PATH] = self.images_dataframe[FILE_PATH]
+
         self.preprocess_flag = False
+
+        self.resize_max_length = RESIZE_MAX_LENGTH
+        self.similarity_threshold = SIMILARITY_THRESHOLD
 
     @create_checkpoint("queue_images")
     def queue_images(self, files_dir):
@@ -93,6 +97,7 @@ class create_session:
         mode="hard overwrite",
         dng_convert_flag=True,
         normalize_histogram_flag=True,
+        resize_max_length = RESIZE_MAX_LENGTH,
         resize_flag=True
     ):
         """
@@ -256,7 +261,7 @@ class create_session:
         return new_jpg_path_list
 
     @create_checkpoint("main_run")
-    def start_main_run(self, similarity_threshold=SIMILARITY_THRESHOLD, cluster_output='all'):
+    def start_main_run(self, cluster_output='all'):
         """
         Runs Main Application Functions
         """
@@ -272,13 +277,12 @@ class create_session:
 
         # Gets Vector Matrix from get_vectors
         vector_matrix_path = self.run_get_vectors(
-            self.tracker, similarity_threshold)
+            self.tracker)
 
         # Passes Vectors to cluster_images, and Adds Cluster
         # Indices to images_dataframe
         self.run_cluster_images(
             vector_matrix_path,
-            similarity_threshold,
             cluster_output)
 
         # Save CSV
@@ -287,20 +291,20 @@ class create_session:
         self.print_end()
 
     @create_checkpoint("get_vectors")
-    def run_get_vectors(self, tracker, similarity_threshold):
+    def run_get_vectors(self, tracker):
         jpg_path_list = self.images_dataframe[JPG_PATH].to_list()
         out_path = str(self.session_out_path)
         return get_vectors.get_image_feature_vectors(jpg_path_list, out_path, tracker)
 
     @create_checkpoint("cluster_vectors")
-    def run_cluster_images(self, vector_matrix_path, similarity_threshold, cluster_output):
+    def run_cluster_images(self, vector_matrix_path, cluster_output):
         out_path = self.session_out_path / "reporting"
 
         # Run cluster images and get cluster index list and optimized cluster indices
         cluster_index_list, optimized_clusters_indices, similarity_list = cluster_images.cluster(
             vector_matrix_path,
             str(out_path),
-            similarity_threshold,
+            self.similarity_threshold,
             self.tracker
         )
 
