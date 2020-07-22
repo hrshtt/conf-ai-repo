@@ -5,24 +5,27 @@ from pandas import read_json
 import numpy as np
 import json
 from pathlib import Path
+from pprint import pprint
 
 def read_table(path):
     """Return a list of dict"""
     # r = requests.get(url)
     with open(path) as f:
         json_data = json.load(f)
-        for cluster in json_data:
-            for row in cluster:
-                row['jpg_path'] = row['jpg_path'].replace("data/", '')
-        return json_data
+        for row in json_data:
+            for image in row['cluster']:
+                jpg_path = Path(image['jpg_path'])
+                # removing data/ from all paths for working with flask STATIC FOLDER
+                image['jpg_path'] = str(Path(*jpg_path.parts[1:]))
+    return json_data
 
 APPNAME = "ImageViewer"
 STATIC_FOLDER = '../data'
-# TABLE_FILE = "../AI-Cull-Duplicates/data/reporting/optimized_clusters.json"
-# Getting all sessions where optimized_clusters.json exists.
-temp_sessions = [session for session in list(Path("data/main_run").glob("*")) if len(list(session.glob("reporting/optimized_clusters_all.json"))) ]
 
-SESSIONS = {session.stem: str(list(session.glob("reporting/optimized_clusters_all.json"))[0]) for session in temp_sessions}
+# Getting all sessions where any optimized_clusters json exists (all/one).
+temp_sessions = [session for session in list(Path("data/main_run").glob("*")) if len(list(session.glob("reporting/optimized_clusters*.json"))) ]
+
+SESSIONS = {session.stem: str(list(session.glob("reporting/optimized_clusters*.json"))[0]) for session in temp_sessions}
 
 app = Flask(__name__, static_folder=STATIC_FOLDER)
 app.config.update(
@@ -52,7 +55,7 @@ def image_view(sess = None, ind=None):
             'imageview.html',
             index=ind,
             pager=pager,
-            cluster=table[ind],
+            cluster=table[ind]['cluster'],
             sess=sess)
 
 @app.route('/goto', methods=['POST', 'GET'])    
